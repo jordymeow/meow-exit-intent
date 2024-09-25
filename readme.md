@@ -23,14 +23,15 @@ Meow Exit Intent is a lightweight WordPress plugin that displays a customizable 
    - Go to the 'Plugins' menu in WordPress and activate the 'Meow Exit Intent' plugin.
 
 3. **Initialize the Plugin:**
-   - Create a file named `demo.php` in the plugin directory or in your theme's functions.php file.
-   - Include the initialization code as shown below.
+   - Copy the contents of `demo.php` into your theme's `functions.php` file or create a custom plugin.
+   - **Important:** Use the `plugins_loaded` action hook as shown in the example code to ensure proper initialization.
+   - Customize the `$modal_content` and `$content_css` variables as needed.
 
 ## Usage
 
 ### Initialization
 
-To use the plugin, you need to create an instance of the `Meow_ExitIntent` class with your desired configuration.
+To use the plugin, you need to create an instance of the `Meow_ExitIntent` class with your desired configuration. It's crucial to initialize the class **after all plugins have been loaded** to ensure that the `Meow_ExitIntent` class is available. This is achieved by using the `plugins_loaded` action hook.
 
 **Example:**
 
@@ -77,14 +78,22 @@ $content_css = '
     }
 ';
 
-// Instantiate the Meow_ExitIntent class with options
-new Meow_ExitIntent(array(
-    'domain'     => null,     // Set to a specific domain, e.g., 'example.com', or null for all domains
-    'logged'     => null,     // Set to true (logged-in users), false (logged-out users), or null for all users
-    'admin'      => null,     // Set to true (admins only), false (non-admins), or null for all users
-    'aggressive' => false,    // Set to true or false to control the 'aggressive' setting
-    'delay'      => 200,      // Delay in milliseconds before showing the modal
-    'content'    => $modal_content,
-    'content_css'=> $content_css
-));
+// Initialize the Meow_ExitIntent class after plugins are loaded
+add_action('plugins_loaded', 'my_custom_meow_exit_intent_init');
+
+function my_custom_meow_exit_intent_init() {
+    // Check if the class exists to prevent errors
+    if (class_exists('Meow_ExitIntent')) {
+        // Instantiate the Meow_ExitIntent class with options
+        new Meow_ExitIntent(array(
+            'domain'     => null,     // Set to a specific domain, e.g., 'example.com', or null for all domains
+            'logged'     => null,     // Set to true (logged-in users), false (logged-out users), or null for all users
+            'admin'      => null,     // Set to true (admins only), false (non-admins), or null for all users
+            'aggressive' => false,    // Set to true or false to control the 'aggressive' setting
+            'delay'      => 200,      // Delay in milliseconds before showing the modal
+            'content'    => $modal_content,
+            'content_css'=> $content_css
+        ));
+    }
+}
 ?>

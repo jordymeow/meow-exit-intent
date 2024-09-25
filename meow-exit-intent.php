@@ -354,17 +354,3 @@ class Meow_ExitIntent {
         <?php
     }
 }
-
-// Initialization should be hooked to an action to ensure all plugins are loaded
-add_action('plugins_loaded', 'meow_exit_intent_init');
-
-function meow_exit_intent_init() {
-    // Check if the class exists to prevent conflicts
-    if (class_exists('Meow_ExitIntent')) {
-        // Include your custom initialization here or leave it empty for default behavior
-        // For example, you can include a separate file for your initialization code
-        if (file_exists(plugin_dir_path(__FILE__) . 'demo.php')) {
-            include_once plugin_dir_path(__FILE__) . 'demo.php';
-        }
-    }
-}
