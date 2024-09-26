@@ -11,6 +11,9 @@ if ( isset( $_GET['message'] ) && $_GET['message'] == '1' ) {
 // Existing popups
 $popups = get_option( 'mwpopint_options', array() );
 
+// Get metrics
+$metrics = get_option( 'mwpopint_metrics', array() );
+
 // Default settings for new popups
 $default_settings = array(
   'admin'      => 'true',
@@ -30,8 +33,11 @@ if ( ! $editing_popup ) {
     <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent' ); ?>" class="page-title-action" style="float: right;">New Popup</a>
   </h1>
 
-  <?php if ( $editing_popup && isset( $editing_popup['index'] ) ) : ?>
-    <h2><?php echo esc_html( 'Edit Popup: ' . $editing_popup['name'] ); ?></h2>
+  <?php if ( $editing_popup && isset( $editing_popup['id'] ) ) : ?>
+    <h2>
+      <?php echo esc_html( 'Edit Popup: ' . ( isset( $editing_popup['name'] ) ? $editing_popup['name'] : '(No Name)' ) ); ?>
+      <span style="color: gray;">(#<?php echo esc_html( $editing_popup['id'] ); ?>)</span>
+    </h2>
   <?php else : ?>
     <h2>Add New Popup</h2>
   <?php endif; ?>
@@ -39,8 +45,8 @@ if ( ! $editing_popup ) {
   <form method="post" action="">
     <?php wp_nonce_field( 'save_meow_exit_intent', 'meow_exit_intent_nonce' ); ?>
 
-    <?php if ( isset( $editing_popup['index'] ) ) : ?>
-      <input type="hidden" name="index" value="<?php echo intval( $editing_popup['index'] ); ?>">
+    <?php if ( isset( $editing_popup['id'] ) ) : ?>
+      <input type="hidden" name="id" value="<?php echo esc_attr( $editing_popup['id'] ); ?>">
     <?php endif; ?>
 
     <table class="form-table">
@@ -56,8 +62,7 @@ if ( ! $editing_popup ) {
         <td>
           <?php $current_domain = $_SERVER['HTTP_HOST']; ?>
           <input name="domain" type="text" id="domain" value="<?php echo isset( $editing_popup['domain'] ) ? esc_attr( $editing_popup['domain'] ) : ''; ?>" class="regular-text">
-          <p class="description">Specify a domain to display this popup on (e.g., <?php echo esc_html( $current_domain ); ?>). Leave blank for all domains. Wildcard subdomains are supported (e.g., *.<?php echo esc_html( $current_domain ); ?>).
-        </p>
+          <p class="description">Specify a domain to display this popup on (e.g., <?php echo esc_html( $current_domain ); ?>). Leave blank for all domains. Wildcard subdomains are supported (e.g., *.<?php echo esc_html( $current_domain ); ?>).</p>
         </td>
       </tr>
       <tr>
@@ -160,7 +165,7 @@ if ( ! $editing_popup ) {
     </table>
 
     <?php
-    if ( isset( $editing_popup['index'] ) ) {
+    if ( isset( $editing_popup['id'] ) ) {
       echo '<p class="submit" style="display: flex; align-items: center;">';
       submit_button( 'Update Popup', 'primary', 'submit', false );
       echo '<span style="margin-left: 5px;">';
@@ -176,34 +181,48 @@ if ( ! $editing_popup ) {
   <table class="widefat fixed" cellspacing="0">
     <thead>
       <tr>
+        <th>ID</th>
         <th>Name</th>
         <th>Domain</th>
         <th>Logged-in Users</th>
         <th>Admin Users</th>
         <th>Aggressive</th>
         <th>Delay</th>
+        <th>Views</th>
+        <th>Clicks</th>
+        <th>Click Rate</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       <?php if ( ! empty( $popups ) ) : ?>
-        <?php foreach ( $popups as $index => $popup ) : ?>
+        <?php foreach ( $popups as $popup ) : ?>
+          <?php
+          $popup_id = $popup['id'];
+          $views = isset( $metrics[ $popup_id ] ) ? intval( $metrics[ $popup_id ]['views'] ) : 0;
+          $clicks = isset( $metrics[ $popup_id ] ) ? intval( $metrics[ $popup_id ]['clicks'] ) : 0;
+          $click_rate = $views > 0 ? round( ( $clicks / $views ) * 100, 2 ) . '%' : '0%';
+          ?>
           <tr>
+            <td><?php echo esc_html( $popup_id ); ?></td>
             <td><?php echo esc_html( $popup['name'] ); ?></td>
             <td><?php echo esc_html( $popup['domain'] ); ?></td>
             <td><?php echo esc_html( ucfirst( $popup['logged'] ) ); ?></td>
             <td><?php echo esc_html( ucfirst( $popup['admin'] ) ); ?></td>
             <td><?php echo $popup['aggressive'] ? 'Yes' : 'No'; ?></td>
             <td><?php echo intval( $popup['delay'] ); ?> ms</td>
+            <td><?php echo $views; ?></td>
+            <td><?php echo $clicks; ?></td>
+            <td><?php echo $click_rate; ?></td>
             <td>
-              <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent&edit=' . $index ); ?>">Edit</a> |
-              <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent&delete=' . $index ); ?>" onclick="return confirm('Are you sure you want to delete this popup?');">Delete</a>
+              <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent&edit=' . esc_attr( $popup_id ) ); ?>">Edit</a> |
+              <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent&delete=' . esc_attr( $popup_id ) ); ?>" onclick="return confirm('Are you sure you want to delete this popup?');">Delete</a>
             </td>
           </tr>
         <?php endforeach; ?>
       <?php else : ?>
         <tr>
-          <td colspan="7">No popups found.</td>
+          <td colspan="11">No popups found.</td>
         </tr>
       <?php endif; ?>
     </tbody>

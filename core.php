@@ -4,18 +4,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Meow_ExitIntent {
-  public $domain = null;       // If null, applies to all domains
-  public $logged = null;       // null for all users, true for logged-in users, false for logged-out users
-  public $admin = null;        // null for all users, true for admins only, false for non-admins
-  public $aggressive = false;  // Controls the 'aggressive' setting in Ouibounce
-  public $delay = 0;           // Delay before showing the modal (in milliseconds)
-  private $modal_content;      // HTML content inside the modal
-  private $content_css;        // CSS styles for the modal content
+  public $id = null;             // Unique ID for the popup
+  public $domain = null;         // If null, applies to all domains
+  public $logged = null;         // null for all users, true for logged-in users, false for logged-out users
+  public $admin = null;          // null for all users, true for admins only, false for non-admins
+  public $aggressive = false;    // Controls the 'aggressive' setting in NyaoBounce
+  public $delay = 0;             // Delay before showing the modal (in milliseconds)
+  private $modal_content;        // HTML content inside the modal
+  private $content_css;          // CSS styles for the modal content
 
   private static $script_enqueued = false;
 
   public function __construct( $args = array() ) {
     // Assign values from $args
+    if ( isset( $args['id'] ) ) {
+      $this->id = $args['id'];
+    }
     if ( isset( $args['domain'] ) ) {
       $this->domain = $args['domain'];
     }
@@ -81,40 +85,25 @@ class Meow_ExitIntent {
     if ( ! $this->should_display_popup() ) {
       return;
     }
-  
+
     // Enqueue nyaobounce.js only once
     if ( ! self::$script_enqueued ) {
-      wp_enqueue_script( 'nyaobounce', plugin_dir_url( __FILE__ ) . 'js/nyaobounce.js', array(), '0.0.1', true );
+      wp_enqueue_script( 'nyaobounce', plugin_dir_url( __FILE__ ) . 'js/nyaobounce.js', array( 'jquery' ), '0.0.1', true );
       self::$script_enqueued = true;
     }
-  
-    // Generate the inline script
-    $inline_script = "(function(){
-      const popupElement = document.getElementById('meow-exit-intent-modal');
-  
-      const nyaobounceInstance = nyaobounce(popupElement, {
-        aggressive: " . ( $this->aggressive ? 'true' : 'false' ) . ",
-        delay: " . $this->delay . ",
-        cookieExpire: 7,
-        callback: function() {
-          console.log('Exit intent popup triggered.');
-        },
-      });
-  
-      // Hide the modal when clicking outside of it
-      document.body.addEventListener('click', function() {
-        popupElement.style.display = 'none';
-      });
-  
-      // Prevent closing when clicking inside the modal
-      popupElement.querySelector('.meow-modal').addEventListener('click', function(e) {
-        e.stopPropagation();
-      });
-    })();";
-  
-    // Add the inline script after nyaobounce.js
-    wp_add_inline_script( 'nyaobounce', $inline_script );
-  }  
+
+    // Enqueue the main script
+    wp_enqueue_script( 'meow-exit-intent', plugin_dir_url( __FILE__ ) . 'js/meow-exit-intent.js', array( 'jquery', 'nyaobounce' ), '0.0.1', true );
+
+    // Localize script data
+    wp_localize_script( 'meow-exit-intent', 'MeowExitIntentData', array(
+      'ajax_url'   => admin_url( 'admin-ajax.php' ),
+      'nonce'      => wp_create_nonce( 'meow_exit_intent_nonce' ),
+      'popup_id'   => $this->id,
+      'aggressive' => $this->aggressive,
+      'delay'      => $this->delay,
+    ) );
+  }
 
   public function output_html() {
     // Check if the popup should be displayed based on the rules
@@ -127,7 +116,7 @@ class Meow_ExitIntent {
 
     ?>
     <!-- Meow Exit Intent Popup HTML -->
-    <div id="meow-exit-intent-modal" style="display: none;">
+    <div id="meow-exit-intent-modal-<?php echo esc_attr( $this->id ); ?>" class="meow-exit-intent-modal" style="display: none;">
       <div class="meow-underlay"></div>
       <div class="meow-modal">
         <div class="meow-modal-body">
@@ -139,7 +128,7 @@ class Meow_ExitIntent {
     <!-- Inline CSS -->
     <style>
       /* Meow Exit Intent CSS */
-      #meow-exit-intent-modal {
+      .meow-exit-intent-modal {
         position: fixed;
         top: 0;
         left: 0;
@@ -172,7 +161,6 @@ class Meow_ExitIntent {
         animation: popin 0.3s;
         padding: 30px;
         box-sizing: border-box;
-        /* Removed text-align: center; */
       }
       /* Content CSS */
       <?php echo $this->content_css; ?>
@@ -258,9 +246,9 @@ class Meow_ExitIntent {
     }
 
     // Check domain
-    if ( !empty( $this->domain ) ) {
+    if ( ! empty( $this->domain ) ) {
       $current_domain = $_SERVER['HTTP_HOST'];
-    
+
       // Check for wildcard subdomain match
       if ( strpos( $this->domain, '*.' ) === 0 ) {
         $domain_without_wildcard = substr( $this->domain, 2 ); // Remove '*.' from the beginning
@@ -286,6 +274,20 @@ function meow_exit_intent_init() {
   // Get saved popups from the database
   $popups = get_option( 'mwpopint_options', array() );
 
+  // Generate IDs for popups that don't have one
+  $popups_updated = false;
+  foreach ( $popups as &$popup ) {
+    if ( ! isset( $popup['id'] ) ) {
+      $popup['id'] = uniqid();
+      $popups_updated = true;
+    }
+  }
+  unset( $popup );
+
+  if ( $popups_updated ) {
+    update_option( 'mwpopint_options', $popups );
+  }
+
   if ( ! empty( $popups ) ) {
     foreach ( $popups as $popup ) {
       // Ensure necessary fields are set
@@ -295,6 +297,7 @@ function meow_exit_intent_init() {
         $admin  = $popup['admin'] === 'all' ? null : ( $popup['admin'] === 'true' ? true : false );
 
         new Meow_ExitIntent( array(
+          'id'          => $popup['id'],
           'domain'      => $popup['domain'],
           'logged'      => $logged,
           'admin'       => $admin,
@@ -307,3 +310,47 @@ function meow_exit_intent_init() {
     }
   }
 }
+
+// AJAX handler for tracking views
+function meow_exit_intent_track_view() {
+  check_ajax_referer( 'meow_exit_intent_nonce', 'security' );
+
+  $popup_id = sanitize_text_field( $_POST['popup_id'] );
+
+  // Get existing metrics
+  $metrics = get_option( 'mwpopint_metrics', array() );
+
+  if ( ! isset( $metrics[ $popup_id ] ) ) {
+    $metrics[ $popup_id ] = array( 'views' => 0, 'clicks' => 0 );
+  }
+
+  $metrics[ $popup_id ]['views']++;
+
+  update_option( 'mwpopint_metrics', $metrics );
+
+  wp_send_json_success();
+}
+add_action( 'wp_ajax_nopriv_meow_exit_intent_track_view', 'meow_exit_intent_track_view' );
+add_action( 'wp_ajax_meow_exit_intent_track_view', 'meow_exit_intent_track_view' );
+
+// AJAX handler for tracking clicks
+function meow_exit_intent_track_click() {
+  check_ajax_referer( 'meow_exit_intent_nonce', 'security' );
+
+  $popup_id = sanitize_text_field( $_POST['popup_id'] );
+
+  // Get existing metrics
+  $metrics = get_option( 'mwpopint_metrics', array() );
+
+  if ( ! isset( $metrics[ $popup_id ] ) ) {
+    $metrics[ $popup_id ] = array( 'views' => 0, 'clicks' => 0 );
+  }
+
+  $metrics[ $popup_id ]['clicks']++;
+
+  update_option( 'mwpopint_metrics', $metrics );
+
+  wp_send_json_success();
+}
+add_action( 'wp_ajax_nopriv_meow_exit_intent_track_click', 'meow_exit_intent_track_click' );
+add_action( 'wp_ajax_meow_exit_intent_track_click', 'meow_exit_intent_track_click' );
