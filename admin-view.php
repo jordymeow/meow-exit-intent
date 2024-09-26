@@ -56,7 +56,8 @@ if ( ! $editing_popup ) {
         <td>
           <?php $current_domain = $_SERVER['HTTP_HOST']; ?>
           <input name="domain" type="text" id="domain" value="<?php echo isset( $editing_popup['domain'] ) ? esc_attr( $editing_popup['domain'] ) : ''; ?>" class="regular-text">
-          <p class="description">Specify a domain to display this popup on (e.g., <?php echo esc_html( $current_domain ); ?>). Leave blank for all domains.</p>
+          <p class="description">Specify a domain to display this popup on (e.g., <?php echo esc_html( $current_domain ); ?>). Leave blank for all domains. Wildcard subdomains are supported (e.g., *.<?php echo esc_html( $current_domain ); ?>).
+        </p>
         </td>
       </tr>
       <tr>

@@ -12,6 +12,8 @@ class Meow_ExitIntent {
   private $modal_content;      // HTML content inside the modal
   private $content_css;        // CSS styles for the modal content
 
+  private static $script_enqueued = false;
+
   public function __construct( $args = array() ) {
     // Assign values from $args
     if ( isset( $args['domain'] ) ) {
@@ -68,34 +70,56 @@ class Meow_ExitIntent {
     }
 
     // Add action to initialize the popup
-    add_action( 'wp_footer', array( $this, 'output_html' ) );
+    add_action( 'wp_footer', array( $this, 'output_html' ), 5 );
+
+    // Enqueue scripts when needed
+    add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
   }
+
+  public function enqueue_scripts() {
+    // Check if the popup should be displayed
+    if ( ! $this->should_display_popup() ) {
+      return;
+    }
+  
+    // Enqueue nyaobounce.js only once
+    if ( ! self::$script_enqueued ) {
+      wp_enqueue_script( 'nyaobounce', plugin_dir_url( __FILE__ ) . 'js/nyaobounce.js', array(), '0.0.1', true );
+      self::$script_enqueued = true;
+    }
+  
+    // Generate the inline script
+    $inline_script = "(function(){
+      const popupElement = document.getElementById('meow-exit-intent-modal');
+  
+      const nyaobounceInstance = nyaobounce(popupElement, {
+        aggressive: " . ( $this->aggressive ? 'true' : 'false' ) . ",
+        delay: " . $this->delay . ",
+        cookieExpire: 7,
+        callback: function() {
+          console.log('Exit intent popup triggered.');
+        },
+      });
+  
+      // Hide the modal when clicking outside of it
+      document.body.addEventListener('click', function() {
+        popupElement.style.display = 'none';
+      });
+  
+      // Prevent closing when clicking inside the modal
+      popupElement.querySelector('.meow-modal').addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    })();";
+  
+    // Add the inline script after nyaobounce.js
+    wp_add_inline_script( 'nyaobounce', $inline_script );
+  }  
 
   public function output_html() {
     // Check if the popup should be displayed based on the rules
-    if ( $this->logged !== null ) {
-      if ( $this->logged && ! is_user_logged_in() ) {
-        return;
-      }
-      if ( ! $this->logged && is_user_logged_in() ) {
-        return;
-      }
-    }
-
-    if ( $this->admin !== null ) {
-      if ( $this->admin && ! current_user_can( 'administrator' ) ) {
-        return;
-      }
-      if ( ! $this->admin && current_user_can( 'administrator' ) ) {
-        return;
-      }
-    }
-
-    if ( $this->domain !== null ) {
-      $current_domain = $_SERVER['HTTP_HOST'];
-      if ( strpos( $current_domain, $this->domain ) === false ) {
-        return;
-      }
+    if ( ! $this->should_display_popup() ) {
+      return;
     }
 
     // Decode HTML entities in the content
@@ -116,12 +140,12 @@ class Meow_ExitIntent {
     <style>
       /* Meow Exit Intent CSS */
       #meow-exit-intent-modal {
-        font-family: 'Open Sans', sans-serif;
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
+        z-index: 9999;
       }
       .meow-underlay {
         width: 100%;
@@ -209,139 +233,49 @@ class Meow_ExitIntent {
         }
       }
     </style>
-
-    <!-- Inline JavaScript -->
-    <script>
-      (function(){
-        // Ouibounce.js code (full version included inline)
-        function ouibounce(el, config) {
-          var config = config || {},
-              aggressive = config.aggressive || false,
-              sensitivity = setDefault(config.sensitivity, 20),
-              timer = config.timer,
-              delay = setDefault(config.delay, 0),
-              callback = config.callback,
-              cookieExpire = setDefaultCookieExpire(config.cookieExpire) || '',
-              cookieDomain = config.cookieDomain ? ';domain=' + config.cookieDomain : '',
-              cookieName = config.cookieName ? config.cookieName : 'viewedOuibounceModal',
-              sitewide = config.sitewide === true ? ';path=/' : '',
-              _delayTimer = null,
-              _html = document.documentElement;
-
-          function setDefault(_property, _default) {
-            return typeof _property === 'undefined' ? _default : _property;
-          }
-
-          function setDefaultCookieExpire(days) {
-            // transform days to milliseconds
-            var ms = days*24*60*60*1000;
-
-            var date = new Date();
-            date.setTime(date.getTime() + ms);
-
-            return "; expires=" + date.toUTCString();
-          }
-
-          setTimeout(attachOuiBounce, delay);
-
-          function attachOuiBounce() {
-            if (isDisabled()) { return; }
-
-            _html.addEventListener('mouseout', handleMouseout);
-            _html.addEventListener('keydown', handleKeydown);
-          }
-
-          function handleMouseout(e) {
-            if (e.clientY > sensitivity || isDisabled()) return;
-
-            // return if the current mouse Y position is greater than the sensitivity
-            // or if the modal is already displayed or cookie exists
-            if (e.relatedTarget && e.relatedTarget.nodeName === 'HTML') return;
-            if (e.toElement && e.toElement.nodeName === 'HTML') return;
-
-            fire();
-          }
-
-          var disableKeydown = false;
-          function handleKeydown(e) {
-            if (disableKeydown || isDisabled()) return;
-            else if(!e.metaKey || e.keyCode !== 76) return;
-
-            disableKeydown = true;
-            fire();
-          }
-
-          function checkCookieValue(cookieName, value) {
-            // cookies are separated by '; '
-            var cookies = document.cookie.split('; ');
-            for (var i = 0; i < cookies.length; i++) {
-              var cookie = cookies[i].split('=');
-              if (cookie[0] === cookieName) {
-                return cookie[1] === value;
-              }
-            }
-            return false;
-          }
-
-          function isDisabled() {
-            return checkCookieValue(cookieName, 'true') && !aggressive;
-          }
-
-          function fire() {
-            if (isDisabled()) return;
-
-            if (el) el.style.display = 'block';
-            disable();
-
-            if (typeof callback === 'function') {
-              callback();
-            }
-          }
-
-          function disable(custom_options) {
-            var options = custom_options || {};
-
-            // you can pass a specific cookie expiration when using the OuiBounce API
-            var expires = setDefaultCookieExpire(typeof options.cookieExpire !== 'undefined' ? options.cookieExpire : config.cookieExpire);
-
-            document.cookie = cookieName + '=true' + expires + cookieDomain + sitewide;
-
-            // remove listeners
-            _html.removeEventListener('mouseout', handleMouseout);
-            _html.removeEventListener('keydown', handleKeydown);
-          }
-
-          return {
-            fire: fire,
-            disable: disable,
-            isDisabled: isDisabled
-          };
-        }
-
-        // Initialize Ouibounce on the popup element
-        var ouibounceInstance = ouibounce(document.getElementById('meow-exit-intent-modal'), {
-          aggressive: <?php echo $this->aggressive ? 'true' : 'false'; ?>,
-          timer: 0,
-          delay: <?php echo $this->delay; ?>, // Delay before showing the modal
-          cookieExpire: 7, // Cookie expires in 7 days
-          callback: function() {
-            console.log('Exit intent popup triggered.');
-          }
-        });
-
-        // Hide the modal when clicking outside of it
-        document.body.addEventListener('click', function() {
-          document.getElementById('meow-exit-intent-modal').style.display = 'none';
-        });
-
-        // Prevent closing when clicking inside the modal
-        document.querySelector('#meow-exit-intent-modal .meow-modal').addEventListener('click', function(e) {
-          e.stopPropagation();
-        });
-
-      })();
-    </script>
     <?php
+  }
+
+  private function should_display_popup() {
+    // Check logged-in status
+    if ( $this->logged !== null ) {
+      if ( $this->logged && ! is_user_logged_in() ) {
+        return false;
+      }
+      if ( ! $this->logged && is_user_logged_in() ) {
+        return false;
+      }
+    }
+
+    // Check admin status
+    if ( $this->admin !== null ) {
+      if ( $this->admin && ! current_user_can( 'administrator' ) ) {
+        return false;
+      }
+      if ( ! $this->admin && current_user_can( 'administrator' ) ) {
+        return false;
+      }
+    }
+
+    // Check domain
+    if ( !empty( $this->domain ) ) {
+      $current_domain = $_SERVER['HTTP_HOST'];
+    
+      // Check for wildcard subdomain match
+      if ( strpos( $this->domain, '*.' ) === 0 ) {
+        $domain_without_wildcard = substr( $this->domain, 2 ); // Remove '*.' from the beginning
+        if ( substr( $current_domain, -strlen( $domain_without_wildcard ) ) !== $domain_without_wildcard ) {
+          return false;
+        }
+      } else {
+        // Strict equality check
+        if ( $current_domain !== $this->domain ) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 }
 

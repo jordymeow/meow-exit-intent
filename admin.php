@@ -69,7 +69,7 @@ class Meow_ExitIntent_Admin {
         'admin'       => $_POST['admin'],
         'aggressive'  => isset( $_POST['aggressive'] ) ? true : false,
         'delay'       => intval( $_POST['delay'] ),
-        'content'     => wp_kses_post( $_POST['content'] ),
+        'content'     => wp_kses_post( wp_encode_emoji( $_POST['content'] ) ),
         'content_css' => wp_strip_all_tags( $_POST['content_css'], false ),
       );
 
