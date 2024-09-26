@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Meow_ExitIntent_Admin {
   public function __construct() {
     add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
-    add_action( 'admin_init', array( $this, 'save_popup' ) );
+    add_action( 'admin_init', array( $this, 'handle_actions' ) );
   }
 
   public function add_settings_page() {
@@ -17,6 +17,16 @@ class Meow_ExitIntent_Admin {
       'meow-exit-intent',
       array( $this, 'render_settings_page' )
     );
+  }
+
+  public function handle_actions() {
+    // Handle saving the popup
+    $this->save_popup();
+
+    // Handle reset metrics
+    if ( isset( $_GET['reset_metrics'] ) && check_admin_referer( 'meow_reset_metrics' ) ) {
+      $this->reset_metrics( sanitize_text_field( $_GET['reset_metrics'] ) );
+    }
   }
 
   public function render_settings_page() {
@@ -41,7 +51,7 @@ class Meow_ExitIntent_Admin {
     }
 
     // Handle delete popup
-    if ( isset( $_GET['delete'] ) ) {
+    if ( isset( $_GET['delete'] ) && check_admin_referer( 'meow_delete_popup' ) ) {
       $delete_id = sanitize_text_field( $_GET['delete'] );
       foreach ( $popups as $key => $popup ) {
         if ( $popup['id'] === $delete_id ) {
@@ -108,6 +118,23 @@ class Meow_ExitIntent_Admin {
       // Redirect back to the same popup for continued editing
       wp_redirect( admin_url( 'options-general.php?page=meow-exit-intent&edit=' . $redirect_id . '&message=1' ) );
       exit;
+    }
+  }
+
+  public function reset_metrics( $popup_id ) {
+    // Check user capabilities
+    if ( ! current_user_can( 'manage_options' ) ) {
+      return;
+    }
+
+    // Get existing metrics
+    $metrics = get_option( 'mwpopint_metrics', array() );
+
+    // Reset metrics for the specific popup
+    if ( isset( $metrics[ $popup_id ] ) ) {
+      unset( $metrics[ $popup_id ] );
+      update_option( 'mwpopint_metrics', $metrics );
+      echo '<div class="notice notice-success is-dismissible"><p>Metrics reset successfully for Popup ID: ' . esc_html( $popup_id ) . '.</p></div>';
     }
   }
 }

@@ -27,17 +27,70 @@ if ( ! $editing_popup ) {
 ?>
 
 <div class="wrap">
-  <h1>
-    Meow Exit Intent
-    <!-- "New Popup" Button aligned to the right -->
-    <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent' ); ?>" class="page-title-action" style="float: right;">New Popup</a>
-  </h1>
+  <h1>Meow Exit Intent</h1>
 
+  <!-- Existing Popups Section -->
+  <h2 style="display: flex; justify-content: space-between; align-items: center;">
+    Existing Popups
+    <!-- "New Popup" Button aligned to the right -->
+    <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent' ); ?>" class="page-title-action">New Popup</a>
+  </h2>
+  <table class="widefat striped fixed" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Domain</th>
+        <th>Logged-in Users</th>
+        <th>Admin Users</th>
+        <th>Aggressive</th>
+        <th>Delay</th>
+        <th>Views</th>
+        <th>Clicks</th>
+        <th>Click Rate</th>
+        <th style="width: 120px;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if ( ! empty( $popups ) ) : ?>
+        <?php foreach ( $popups as $popup ) : ?>
+          <?php
+          $popup_id = $popup['id'];
+          $views = isset( $metrics[ $popup_id ] ) ? intval( $metrics[ $popup_id ]['views'] ) : 0;
+          $clicks = isset( $metrics[ $popup_id ] ) ? intval( $metrics[ $popup_id ]['clicks'] ) : 0;
+          $click_rate = $views > 0 ? round( ( $clicks / $views ) * 100, 2 ) . '%' : '0%';
+
+          // Check if this popup is being edited
+          $is_editing = isset( $editing_popup['id'] ) && $editing_popup['id'] === $popup_id;
+          ?>
+          <tr>
+            <td><?php echo $is_editing ? '<strong>' . esc_html( $popup['name'] ) . '</strong>' : esc_html( $popup['name'] ); ?></td>
+            <td><?php echo esc_html( $popup['domain'] ); ?></td>
+            <td><?php echo esc_html( ucfirst( $popup['logged'] ) ); ?></td>
+            <td><?php echo esc_html( ucfirst( $popup['admin'] ) ); ?></td>
+            <td><?php echo $popup['aggressive'] ? 'Yes' : 'No'; ?></td>
+            <td><?php echo intval( $popup['delay'] ); ?> ms</td>
+            <td><?php echo $views; ?></td>
+            <td><?php echo $clicks; ?></td>
+            <td><?php echo $click_rate; ?></td>
+            <td style="width: 120px;">
+              <a href="<?php echo wp_nonce_url( admin_url( 'options-general.php?page=meow-exit-intent&edit=' . esc_attr( $popup_id ) ), 'meow_edit_popup' ); ?>">Edit</a> |
+              <a href="<?php echo wp_nonce_url( admin_url( 'options-general.php?page=meow-exit-intent&delete=' . esc_attr( $popup_id ) ), 'meow_delete_popup' ); ?>" onclick="return confirm('Are you sure you want to delete this popup?');">Delete</a> |
+              <a href="<?php echo wp_nonce_url( admin_url( 'options-general.php?page=meow-exit-intent&reset_metrics=' . esc_attr( $popup_id ) ), 'meow_reset_metrics' ); ?>" onclick="return confirm('Are you sure you want to reset metrics for this popup?');">Reset</a>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      <?php else : ?>
+        <tr>
+          <td colspan="10">No popups found.</td>
+        </tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+  <p class="description">The "Reset" action will reset the views and clicks metrics for the popup.</p>
+
+  <!-- Add New Popup / Edit Popup Section -->
   <?php if ( $editing_popup && isset( $editing_popup['id'] ) ) : ?>
-    <h2>
-      <?php echo esc_html( 'Edit Popup: ' . ( isset( $editing_popup['name'] ) ? $editing_popup['name'] : '(No Name)' ) ); ?>
-      <span style="color: gray;">(#<?php echo esc_html( $editing_popup['id'] ); ?>)</span>
-    </h2>
+    <h2>Edit Popup: <?php echo esc_html( $editing_popup['name'] ); ?></h2>
   <?php else : ?>
     <h2>Add New Popup</h2>
   <?php endif; ?>
@@ -81,7 +134,7 @@ if ( ! $editing_popup ) {
         <td>
           <select name="admin" id="admin">
             <option value="all" <?php selected( isset( $editing_popup['admin'] ) ? $editing_popup['admin'] : 'all', 'all' ); ?>>All Users</option>
-            <option value="true" <?php selected( isset( $editing_popup['admin'] ) ? $editing_popup['admin'] : 'true', 'true' ); ?>>Admins Only</option>
+            <option value="true" <?php selected( isset( $editing_popup['admin'] ) ? $editing_popup['admin'] : '', 'true' ); ?>>Admins Only</option>
             <option value="false" <?php selected( isset( $editing_popup['admin'] ) ? $editing_popup['admin'] : '', 'false' ); ?>>Non-Admins Only</option>
           </select>
           <p class="description">Choose whether to display this popup to admin users.</p>
@@ -176,55 +229,4 @@ if ( ! $editing_popup ) {
     }
     ?>
   </form>
-
-  <h2>Existing Popups</h2>
-  <table class="widefat fixed" cellspacing="0">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Domain</th>
-        <th>Logged-in Users</th>
-        <th>Admin Users</th>
-        <th>Aggressive</th>
-        <th>Delay</th>
-        <th>Views</th>
-        <th>Clicks</th>
-        <th>Click Rate</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if ( ! empty( $popups ) ) : ?>
-        <?php foreach ( $popups as $popup ) : ?>
-          <?php
-          $popup_id = $popup['id'];
-          $views = isset( $metrics[ $popup_id ] ) ? intval( $metrics[ $popup_id ]['views'] ) : 0;
-          $clicks = isset( $metrics[ $popup_id ] ) ? intval( $metrics[ $popup_id ]['clicks'] ) : 0;
-          $click_rate = $views > 0 ? round( ( $clicks / $views ) * 100, 2 ) . '%' : '0%';
-          ?>
-          <tr>
-            <td><?php echo esc_html( $popup_id ); ?></td>
-            <td><?php echo esc_html( $popup['name'] ); ?></td>
-            <td><?php echo esc_html( $popup['domain'] ); ?></td>
-            <td><?php echo esc_html( ucfirst( $popup['logged'] ) ); ?></td>
-            <td><?php echo esc_html( ucfirst( $popup['admin'] ) ); ?></td>
-            <td><?php echo $popup['aggressive'] ? 'Yes' : 'No'; ?></td>
-            <td><?php echo intval( $popup['delay'] ); ?> ms</td>
-            <td><?php echo $views; ?></td>
-            <td><?php echo $clicks; ?></td>
-            <td><?php echo $click_rate; ?></td>
-            <td>
-              <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent&edit=' . esc_attr( $popup_id ) ); ?>">Edit</a> |
-              <a href="<?php echo admin_url( 'options-general.php?page=meow-exit-intent&delete=' . esc_attr( $popup_id ) ); ?>" onclick="return confirm('Are you sure you want to delete this popup?');">Delete</a>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-      <?php else : ?>
-        <tr>
-          <td colspan="11">No popups found.</td>
-        </tr>
-      <?php endif; ?>
-    </tbody>
-  </table>
 </div>
