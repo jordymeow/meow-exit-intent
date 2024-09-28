@@ -24,8 +24,8 @@
     const cookieOptions = {
       name: config.cookieName,
       expire: setCookieExpire(config.cookieExpire),
-      domain: config.cookieDomain ? `;domain=${config.cookieDomain}` : '',
-      path: config.sitewide ? ';path=/' : '',
+      domain: config.cookieDomain ? `; domain=${config.cookieDomain}` : `; domain=${window.location.hostname}`,
+      path: config.sitewide ? '; path=/' : '; path=/',
     };
 
     setTimeout(attachNyaobounce, config.timer);

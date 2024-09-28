@@ -88,12 +88,12 @@ class Meow_ExitIntent {
 
     // Enqueue nyaobounce.js only once
     if ( ! self::$script_enqueued ) {
-      wp_enqueue_script( 'nyaobounce', plugin_dir_url( __FILE__ ) . 'js/nyaobounce.js', array( 'jquery' ), '0.0.1', true );
+      wp_enqueue_script( 'nyaobounce', plugin_dir_url( __FILE__ ) . 'js/nyaobounce.js', array( 'jquery' ), '0.0.2', true );
       self::$script_enqueued = true;
     }
 
     // Enqueue the main script
-    wp_enqueue_script( 'meow-exit-intent', plugin_dir_url( __FILE__ ) . 'js/meow-exit-intent.js', array( 'jquery', 'nyaobounce' ), '0.0.1', true );
+    wp_enqueue_script( 'meow-exit-intent', plugin_dir_url( __FILE__ ) . 'js/meow-exit-intent.js', array( 'jquery', 'nyaobounce' ), '0.0.2', true );
 
     // Localize script data
     wp_localize_script( 'meow-exit-intent', 'MeowExitIntentData', array(

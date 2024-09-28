@@ -3,7 +3,7 @@
 Plugin Name: Meow Exit Intent
 Plugin URI: https://github.com/jordymeow/meow-exit-intent
 Description: A simple and customizable exit intent popup for WordPress.
-Version: 0.0.1
+Version: 0.0.2
 Author: Jordy Meow
 Author URI: https://meowapps.com
 License: MIT

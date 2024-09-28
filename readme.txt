@@ -92,8 +92,11 @@ The plugin is lightweight and optimized to have minimal impact on your site's pe
 
 == Changelog ==
 
+= 0.0.2 =
+* Fix: Avoid cookie issues when the domain is not set with Firefox and Safari.
+
 = 0.0.1 =
-* Initial release with admin interface for managing popups.
+* First release.
 
 == License ==
 
