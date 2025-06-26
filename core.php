@@ -273,6 +273,11 @@ add_action( 'plugins_loaded', 'meow_exit_intent_init' );
 function meow_exit_intent_init() {
   // Get saved popups from the database
   $popups = get_option( 'mwpopint_options', array() );
+  
+  // Ensure $popups is always an array
+  if ( ! is_array( $popups ) ) {
+    $popups = array();
+  }
 
   // Generate IDs for popups that don't have one
   $popups_updated = false;
